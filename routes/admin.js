@@ -72,9 +72,13 @@ router.post('/posts/new', async (req, res, next) => {
       return res.status(400).send('Title wajib diisi. <a href="javascript:history.back()">Back</a>');
     }
 
+    const mdText = typeof md === 'string' ? md : '';
     const slug = helpers.makeUniqueSlug(title);
-    const html = markdown.render(md || '');
-    const finalExcerpt = (excerpt && excerpt.trim()) || markdown.makeExcerpt(md || '', 200);
+    let html = '';
+    try { html = markdown.render(mdText); }
+    catch (e) { console.error('[POST new] markdown render failed:', e.message); html = '<pre>' + mdText.replace(/</g,'&lt;') + '</pre>'; }
+
+    const finalExcerpt = (excerpt && excerpt.trim()) || markdown.makeExcerpt(mdText, 200);
     const publishedAt = status === 'published' ? new Date() : null;
 
     const [result] = await db.query(
@@ -84,7 +88,7 @@ router.post('/posts/new', async (req, res, next) => {
         meta_title, meta_description, author_id, published_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        title.trim(), slug, md || '', html, finalExcerpt, feature_image || null,
+        title.trim(), slug, mdText, html, finalExcerpt, feature_image || null,
         status || 'draft', visibility || 'public', featured ? 1 : 0,
         meta_title || null, meta_description || null, req.session.user.id, publishedAt
       ]
@@ -93,6 +97,7 @@ router.post('/posts/new', async (req, res, next) => {
     await syncTags(result.insertId, tags);
     res.redirect('/admin/posts');
   } catch (e) {
+    console.error('[POST new] FAIL:', e);
     next(e);
   }
 });
@@ -135,8 +140,12 @@ router.post('/posts/:id/edit', async (req, res, next) => {
     );
     if (!current) return res.status(404).send('Not found');
 
-    const html = markdown.render(md || '');
-    const finalExcerpt = (excerpt && excerpt.trim()) || markdown.makeExcerpt(md || '', 200);
+    const mdText = typeof md === 'string' ? md : '';
+    let html = '';
+    try { html = markdown.render(mdText); }
+    catch (e) { console.error('[POST edit] markdown render failed:', e.message); html = '<pre>' + mdText.replace(/</g,'&lt;') + '</pre>'; }
+
+    const finalExcerpt = (excerpt && excerpt.trim()) || markdown.makeExcerpt(mdText, 200);
     let publishedAt = current.published_at;
     if (status === 'published' && !publishedAt) publishedAt = new Date();
 
@@ -147,7 +156,7 @@ router.post('/posts/:id/edit', async (req, res, next) => {
          meta_title=?, meta_description=?, published_at=?
        WHERE id=?`,
       [
-        title.trim(), md || '', html, finalExcerpt, feature_image || null,
+        title.trim(), mdText, html, finalExcerpt, feature_image || null,
         status || 'draft', visibility || 'public', featured ? 1 : 0,
         meta_title || null, meta_description || null, publishedAt,
         req.params.id
@@ -157,6 +166,7 @@ router.post('/posts/:id/edit', async (req, res, next) => {
     await syncTags(req.params.id, tags);
     res.redirect('/admin/posts');
   } catch (e) {
+    console.error('[POST edit] FAIL:', e);
     next(e);
   }
 });

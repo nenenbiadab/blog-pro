@@ -79,7 +79,7 @@ Kalau `ok: false`, cek `db.error` — biasanya env vars salah.
 
 ```
 ghost-clone/
-├── server.js             # Express bootstrap
+├── server.js             # Express bootstrap (entry point)
 ├── config/db.js          # DB pool + auto-migrate + helpers
 ├── middleware/auth.js    # requireAuth, injectUser, injectSiteData
 ├── routes/
